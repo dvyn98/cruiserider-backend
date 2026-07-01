@@ -1,0 +1,43 @@
+# CruiseRider Backend - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ─── Core Framework ────────────────────────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.30.6      # ASGI server (run with: uvicorn app.main:app --reload)
+python-multipart==0.0.9       # File upload support
+
+# ─── Database ──────────────────────────────────────────────
+sqlalchemy[asyncio]==2.0.35
+aiosqlite==0.20.0              # Async SQLite driver (local dev)
+asyncpg==0.29.0                # Async PostgreSQL driver (production)
+alembic==1.13.3                # DB migrations
+
+# ─── Settings / Config ─────────────────────────────────────
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
+
+# ─── HTTP Client (for YouTube/Instagram API calls) ──────────
+httpx==0.27.2
+
+# ─── AI / Claude ───────────────────────────────────────────
+anthropic==0.34.2              # Claude AI SDK
+
+# ─── Security / Auth ───────────────────────────────────────
+python-jose[cryptography]==3.3.0  # JWT tokens
+passlib[bcrypt]==1.7.4             # Password hashing
+
+# ─── Email ─────────────────────────────────────────────────
+aiosmtplib==3.0.1              # Async email sending
+
+# ─── Caching (Optional - Redis) ────────────────────────────
+# redis==5.0.8
+# aioredis==2.0.1
+
+# ─── YouTube Transcript (Phase 2) ──────────────────────────
+# youtube-transcript-api==0.6.2
+
+# ─── Dev Tools ─────────────────────────────────────────────
+pytest==8.3.3
+pytest-asyncio==0.24.0
+httpx==0.27.2                  # For testing API endpoints
