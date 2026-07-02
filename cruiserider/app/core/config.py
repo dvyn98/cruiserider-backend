@@ -24,9 +24,9 @@ class Settings(BaseSettings):
 
     # ─── Database ─────────────────────────────────────────
     # SQLite for local dev; swap to PostgreSQL for production
-    DATABASE_URL: str = "sqlite+aiosqlite:///./cruiserider.db"
+   # DATABASE_URL: str = "sqlite+aiosqlite:///./cruiserider.db"
     # For PostgreSQL: "postgresql+asyncpg://user:password@localhost/cruiserider"
-
+    DATABASE_URL: str="postgresql+asyncpg://postgres:Cruise%40123@localhost:5434/cruiserider"
     # ─── YouTube Data API v3 ──────────────────────────────
     # Get from: console.cloud.google.com → APIs → YouTube Data API v3
     YOUTUBE_API_KEY: str = ""
