@@ -34,7 +34,7 @@ async def create_tables():
     """Create all tables on startup"""
     async with engine.begin() as conn:
         # Import all models so Base knows about them
-        from app.models import video, article, car, consultancy, instagram  # noqa
+        from app.models import video, article, car, consultancy, instagram, users  # noqa
         await conn.run_sync(Base.metadata.create_all)
         logger.info("✅ All database tables created")
 
