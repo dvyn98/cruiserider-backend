@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    logger.info("🚀 Starting CruiseRider API...")
+    logger.info("Starting CruiseRider API...")
     await create_tables()
-    logger.info("✅ Database tables ready")
+    logger.info("Database tables ready")
     yield
-    logger.info("🛑 Shutting down CruiseRider API...")
+    logger.info("Shutting down CruiseRider API...")
 
 
 app = FastAPI(
@@ -33,12 +33,12 @@ app = FastAPI(
     ## CruiseRider - Automotive Content Platform API
     
     Full-stack backend for Priyanshu's automotive website featuring:
-    - 🚗 Car database with on-road prices across all Indian cities
-    - 📺 YouTube video sync and embedding
-    - 📸 Instagram feed integration  
-    - 🤖 AI-powered blog generation from video content
-    - 💬 Car consultancy booking system
-    - 🔍 SEO-optimised article management
+    - Car database with on-road prices across all Indian cities
+    - YouTube video sync and embedding
+    - Instagram feed integration  
+    - AI-powered blog generation from video content
+    - Car consultancy booking system
+    - SEO-optimised article management
     """,
     version="1.0.0",
     docs_url="/docs",
