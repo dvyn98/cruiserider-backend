@@ -1,6 +1,8 @@
-from sqlalchemy.orm import Session
+import asyncio
 
-from app.core.database import SessionLocal
+from sqlalchemy import select
+
+from app.core.database import AsyncSessionLocal
 from app.models.users import User, UserRole
 from app.security.password import hash_password
 
@@ -10,15 +12,15 @@ ADMIN_EMAIL = "divyanshurajputnbd@gmail.com"
 ADMIN_PASSWORD = "Cruise123"
 
 
-def seed_admin():
-    db: Session = SessionLocal()
+async def seed_admin():
 
-    try:
-        existing_admin = (
-            db.query(User)
-            .filter(User.email == ADMIN_EMAIL)
-            .first()
+    async with AsyncSessionLocal() as db:
+
+        result = await db.execute(
+            select(User).where(User.email == ADMIN_EMAIL)
         )
+
+        existing_admin = result.scalar_one_or_none()
 
         if existing_admin:
             print("Admin already exists.")
@@ -32,13 +34,13 @@ def seed_admin():
         )
 
         db.add(admin)
-        db.commit()
+
+        await db.commit()
+
+        await db.refresh(admin)
 
         print("Admin created successfully.")
 
-    finally:
-        db.close()
-
 
 if __name__ == "__main__":
-    seed_admin()
+    asyncio.run(seed_admin())

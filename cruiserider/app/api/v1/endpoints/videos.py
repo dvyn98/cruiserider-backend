@@ -8,6 +8,9 @@ from sqlalchemy import select, desc, func
 from typing import List, Optional
 from app.core.database import get_db
 from app.models.video import Video
+from app.security.dependencies import get_current_admin
+from app.models.users import User, UserRole
+
 from datetime import datetime
 import logging
 
@@ -100,7 +103,10 @@ async def get_video(youtube_video_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/{video_id}/feature")
-async def toggle_feature(video_id: str, db: AsyncSession = Depends(get_db)):
+async def toggle_feature(video_id: str, 
+                         db: AsyncSession = Depends(get_db),
+                         current_admin: User= Depends(get_current_admin)
+    ):
     """Toggle featured status of a video (admin action)"""
     result = await db.execute(select(Video).where(Video.id == video_id))
     video = result.scalar_one_or_none()

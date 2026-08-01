@@ -55,7 +55,7 @@ class User(Base):
     )
 
     last_login = Column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True
     )
 
