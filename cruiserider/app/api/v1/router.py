@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     instagram,
     consultancy,
     sync,
+    auth
 )
 
 api_router = APIRouter()
@@ -20,3 +21,4 @@ api_router.include_router(cars.router, prefix="/cars", tags=["Cars & Prices"])
 api_router.include_router(instagram.router, prefix="/instagram", tags=["Instagram"])
 api_router.include_router(consultancy.router, prefix="/consultancy", tags=["Consultancy"])
 api_router.include_router(sync.router, prefix="/sync", tags=["Admin - Sync"])
+api_router.include_router(auth.router, prefix="/auth", tags=["Authenctication"])
