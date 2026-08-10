@@ -30,7 +30,7 @@ async def get_videos(
     Get all videos with pagination and filtering.
     Used by: Homepage video grid, Videos listing page
     """
-    query = select(Video).where(Video.is_published == True)
+    query = select(Video).where(Video.status == "Draft")
 
     if category:
         query = query.where(Video.category == category)
@@ -64,7 +64,7 @@ async def get_featured_videos(
     """Get featured videos for homepage hero section"""
     query = (
         select(Video)
-        .where(Video.is_published == True, Video.is_featured == True)
+        .where(Video.status == "Completed", Video.is_featured == True)
         .order_by(desc(Video.published_at))
         .limit(limit)
     )
@@ -81,7 +81,7 @@ async def get_latest_videos(
     """Get latest videos - used for homepage 'Recent Reviews' section"""
     query = (
         select(Video)
-        .where(Video.is_published == True)
+        .where(Video.status == "Completed")
         .order_by(desc(Video.published_at))
         .limit(limit)
     )
@@ -125,7 +125,7 @@ def video_to_dict(v: Video) -> dict:
         "title": v.title,
         "description": v.description,
         "thumbnail_url": v.thumbnail_url,
-        "published_at": v.published_at.isoformat() if v.published_at else None,
+        "Status": v.status,
         "duration": v.duration,
         "view_count": v.view_count,
         "like_count": v.like_count,
