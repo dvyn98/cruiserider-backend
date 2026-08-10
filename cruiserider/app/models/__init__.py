@@ -4,3 +4,5 @@ from .car import (
     CarVariant
 )
 
+from .video import Video
+

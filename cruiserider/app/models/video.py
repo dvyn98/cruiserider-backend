@@ -16,7 +16,7 @@ class Video(Base):
     title = Column(String(500), nullable=False)
     description = Column(Text)
     thumbnail_url = Column(String(1000))
-    published_at = Column(DateTime)
+    published_at = Column(DateTime(timezone=True), nullable=False)
     duration = Column(String(20))         # ISO 8601 duration e.g. PT15M30S
     view_count = Column(Integer, default=0)
     like_count = Column(Integer, default=0)
@@ -26,7 +26,10 @@ class Video(Base):
     car_brand = Column(String(100))       # Extracted: "Mahindra", "Tata"
     car_model = Column(String(100))       # Extracted: "Thar", "Nexon"
     is_featured = Column(Boolean, default=False)
-    is_published = Column(Boolean, default=True)
+    status= Column(String(20),default="DRAFT", nullable=False)
+    # is_published = Column(Boolean, default=True)
+    #AI Pipeline
     article_generated = Column(Boolean, default=False)
+    # Audit Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
