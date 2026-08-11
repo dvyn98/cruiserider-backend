@@ -1,140 +1,185 @@
-"""
-Videos API - CRUD for YouTube videos synced to CruiseRider
-"""
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    Query,
+    status as http_status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
-from typing import List, Optional
+
 from app.core.database import get_db
-from app.models.video import Video
+from app.schemas.video import (
+    VideoResponse,
+    VideoListResponse,
+    VideoStatus,
+)
+from app.services.video_service import VideoService
 from app.security.dependencies import get_current_admin
-from app.models.users import User, UserRole
+from app.models.users import User
 
-from datetime import datetime
-import logging
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/")
+def get_video_service(
+    db: AsyncSession = Depends(get_db),
+) -> VideoService:
+
+    return VideoService(db)
+
+
+@router.get(
+    "/",
+    response_model=VideoListResponse
+)
 async def get_videos(
     page: int = Query(1, ge=1),
     limit: int = Query(12, ge=1, le=50),
+    status_filter: Optional[VideoStatus] = Query(
+        None,
+        alias="status"
+    ),
     category: Optional[str] = None,
     car_brand: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
+    search: Optional[str] = None,
+    service: VideoService = Depends(get_video_service),
 ):
-    """
-    Get all videos with pagination and filtering.
-    Used by: Homepage video grid, Videos listing page
-    """
-    query = select(Video).where(Video.status == "Draft")
 
-    if category:
-        query = query.where(Video.category == category)
-    if car_brand:
-        query = query.where(Video.car_brand.ilike(f"%{car_brand}%"))
+    return await service.get_videos(
+        page=page,
+        limit=limit,
+        status_filter=status_filter,
+        category=category,
+        car_brand=car_brand,
+        search=search,
+    )
 
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_query)
+@router.post("/sync/youtube")
+async def sync_youtube_videos(
+    max_results: int = Query(50, ge=1, le=50),
+    service: VideoService = Depends(get_video_service),
+    current_admin: User = Depends(get_current_admin),
+):
 
-    # Paginate
-    query = query.order_by(desc(Video.published_at))
-    query = query.offset((page - 1) * limit).limit(limit)
-    result = await db.execute(query)
-    videos = result.scalars().all()
+    return await service.sync_videos(
+        max_results=max_results
+    )
 
-    return {
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "pages": (total + limit - 1) // limit,
-        "videos": [video_to_dict(v) for v in videos],
-    }
-
-
-@router.get("/featured")
+@router.get(
+    "/featured",
+    response_model=list[VideoResponse]
+)
 async def get_featured_videos(
     limit: int = Query(6, ge=1, le=12),
-    db: AsyncSession = Depends(get_db),
+    service: VideoService = Depends(get_video_service),
 ):
-    """Get featured videos for homepage hero section"""
-    query = (
-        select(Video)
-        .where(Video.status == "Completed", Video.is_featured == True)
-        .order_by(desc(Video.published_at))
-        .limit(limit)
+
+    result = await service.get_videos(
+        page=1,
+        limit=limit,
+        status_filter=VideoStatus.PUBLISHED,
     )
-    result = await db.execute(query)
-    videos = result.scalars().all()
-    return [video_to_dict(v) for v in videos]
+
+    return [
+        video
+        for video in result["videos"]
+        if video.is_featured
+    ]
 
 
-@router.get("/latest")
+@router.get(
+    "/latest",
+    response_model=list[VideoResponse]
+)
 async def get_latest_videos(
     limit: int = Query(8, ge=1, le=20),
-    db: AsyncSession = Depends(get_db),
+    service: VideoService = Depends(get_video_service),
 ):
-    """Get latest videos - used for homepage 'Recent Reviews' section"""
-    query = (
-        select(Video)
-        .where(Video.status == "Completed")
-        .order_by(desc(Video.published_at))
-        .limit(limit)
+
+    result = await service.get_videos(
+        page=1,
+        limit=limit,
+        status_filter=VideoStatus.PUBLISHED,
     )
-    result = await db.execute(query)
-    videos = result.scalars().all()
-    return [video_to_dict(v) for v in videos]
+
+    return result["videos"]
 
 
-@router.get("/{youtube_video_id}")
-async def get_video(youtube_video_id: str, db: AsyncSession = Depends(get_db)):
-    """Get single video by YouTube video ID"""
-    result = await db.execute(
-        select(Video).where(Video.youtube_video_id == youtube_video_id)
-    )
-    video = result.scalar_one_or_none()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-    return video_to_dict(video)
+@router.get(
+    "/{video_id}",
+    response_model=VideoResponse
+)
+async def get_video(
+    video_id: str,
+    service: VideoService = Depends(get_video_service),
+):
+
+    return await service.get_video(video_id)
 
 
-@router.patch("/{video_id}/feature")
-async def toggle_feature(video_id: str, 
-                         db: AsyncSession = Depends(get_db),
-                         current_admin: User= Depends(get_current_admin)
-    ):
-    """Toggle featured status of a video (admin action)"""
-    result = await db.execute(select(Video).where(Video.id == video_id))
-    video = result.scalar_one_or_none()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-    video.is_featured = not video.is_featured
-    await db.commit()
-    return {"message": f"Featured set to {video.is_featured}", "video_id": video_id}
+@router.post(
+    "/{video_id}/publish",
+    response_model=VideoResponse
+)
+async def publish_video(
+    video_id: str,
+    service: VideoService = Depends(get_video_service),
+    current_admin: User = Depends(get_current_admin),
+):
+
+    return await service.publish_video(video_id)
 
 
+@router.post(
+    "/{video_id}/unpublish",
+    response_model=VideoResponse
+)
+async def unpublish_video(
+    video_id: str,
+    service: VideoService = Depends(get_video_service),
+    current_admin: User = Depends(get_current_admin),
+):
 
-def video_to_dict(v: Video) -> dict:
-    return {
-        "id": v.id,
-        "youtube_video_id": v.youtube_video_id,
-        "title": v.title,
-        "description": v.description,
-        "thumbnail_url": v.thumbnail_url,
-        "Status": v.status,
-        "duration": v.duration,
-        "view_count": v.view_count,
-        "like_count": v.like_count,
-        "tags": v.tags or [],
-        "category": v.category,
-        "car_brand": v.car_brand,
-        "car_model": v.car_model,
-        "is_featured": v.is_featured,
-        "article_generated": v.article_generated,
-        "youtube_url": f"https://www.youtube.com/watch?v={v.youtube_video_id}",
-        "embed_url": f"https://www.youtube.com/embed/{v.youtube_video_id}",
-    }
+    return await service.unpublish_video(video_id)
+
+
+@router.post(
+    "/{video_id}/archive",
+    response_model=VideoResponse
+)
+async def archive_video(
+    video_id: str,
+    service: VideoService = Depends(get_video_service),
+    current_admin: User = Depends(get_current_admin),
+):
+
+    return await service.archive_video(video_id)
+
+
+@router.patch(
+    "/{video_id}/feature",
+    response_model=VideoResponse
+)
+async def toggle_feature(
+    video_id: str,
+    service: VideoService = Depends(get_video_service),
+    current_admin: User = Depends(get_current_admin),
+):
+
+    return await service.toggle_feature(video_id)
+
+
+@router.delete(
+    "/{video_id}",
+    status_code=http_status.HTTP_204_NO_CONTENT
+)
+async def delete_video(
+    video_id: str,
+    service: VideoService = Depends(get_video_service),
+    current_admin: User = Depends(get_current_admin),
+):
+
+    await service.delete_video(video_id)
+
+

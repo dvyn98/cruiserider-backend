@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.video_repository import VideoRepository
 from app.schemas.video import (
     VideoCreate,
-    VideoUpdate,
     VideoStatus,
 )
 from app.services.youtube_service import (
@@ -69,7 +68,11 @@ class VideoService:
     async def get_videos(
         self,
         page: int = 1,
-        limit: int = 20
+        limit: int = 20,
+        status_filter: VideoStatus | None= None,
+        category: str | None=None,
+        car_brand: str | None=None,
+        search: str | None=None,
     ):
         """
         Get paginated videos.
@@ -81,53 +84,103 @@ class VideoService:
                 detail="Page must be greater than or equal to 1"
             )
 
-        if limit < 1 or limit > 100:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Limit must be between 1 and 100"
-            )
+        
 
         skip = (page - 1) * limit
-
-        return await self.repository.get_all(
+        videos, total = await self.repository.get_videos(
             skip=skip,
-            limit=limit
+            limit=limit,
+            status=status_filter,
+            category=category,
+            car_brand=car_brand,
+            search=search,
         )
+        pages=(total+limit-1)
 
+        return {
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": pages,
+            "videos": videos,
+        }
    
 
    
-    # SYNC YOUTUBE VIDEOS
+    async def publish_video(
+        self,
+        video_id: str
+    ):
+
+        video = await self.get_video(video_id)
+
+        video.status = VideoStatus.PUBLISHED.value
+
+        return await self.repository.update(video)
+
+    async def archive_video(
+        self,
+        video_id: str
+    ):
+
+        video = await self.get_video(video_id)
+
+        video.status = VideoStatus.ARCHIVED.value
+        video.is_featured = False
+
+        return await self.repository.update(video)
+
+    async def unpublish_video(
+        self,
+        video_id: str
+    ):
+
+        video = await self.get_video(video_id)
+
+        video.status = VideoStatus.DRAFT.value
+
+        return await self.repository.update(video)
+
+    async def toggle_feature(
+        self,
+        video_id: str
+    ):
+
+        video = await self.get_video(video_id)
+
+        video.is_featured = not video.is_featured
+
+        return await self.repository.update(video)
+
+    async def delete_video(
+        self,
+        video_id: str
+    ):
+
+        video = await self.get_video(video_id)
+
+        await self.repository.delete(video)
 
     async def sync_videos(
         self,
         max_results: int = 50
     ):
-        """
-        Fetch videos from YouTube and synchronize them
-        with the Cruise Rider database.
-        """
 
-        # -----------------------------------------------------
-        # STEP 1: Ask YouTubeService for videos
-        # -----------------------------------------------------
+        if max_results < 1 or max_results > 50:
+            raise HTTPException(
+                status_code=400,
+                detail="max_results must be between 1 and 50"
+            )
 
         youtube_response = await fetch_channel_videos(
             max_results=max_results
         )
 
-        youtube_items = youtube_response.get(
-            "items",
-            []
-        )
+        youtube_items = youtube_response.get("items", [])
 
         created = 0
-       
+        updated = 0
         skipped = 0
-
-    
-        # STEP 2: Process each YouTube video
-    
 
         for item in youtube_items:
 
@@ -137,13 +190,11 @@ class VideoService:
                 "youtube_video_id"
             )
 
-            if not youtube_video_id:
+            published_at = video_data.get("published_at")
+
+            if not youtube_video_id or not published_at:
                 skipped += 1
                 continue
-
-            
-            # STEP 3: Check database
-           
 
             existing_video = (
                 await self.repository.get_by_youtube_id(
@@ -151,34 +202,42 @@ class VideoService:
                 )
             )
 
-            # STEP 4A: Existing video → update
-            
-
             if existing_video:
 
-                skipped+=1
+                # Update YouTube-owned fields
+                existing_video.title = video_data["title"]
+                existing_video.description = video_data["description"]
+                existing_video.thumbnail_url = video_data["thumbnail_url"]
+                existing_video.published_at = video_data["published_at"]
+                existing_video.duration = video_data["duration"]
+                existing_video.view_count = video_data["view_count"]
+                existing_video.like_count = video_data["like_count"]
+                existing_video.comment_count = video_data["comment_count"]
+                existing_video.tags = video_data["tags"]
+                existing_video.car_brand = video_data["car_brand"]
+                existing_video.car_model = video_data["car_model"]
+
+                await self.repository.update(existing_video)
+
+                updated += 1
+
                 continue
 
-          
             create_data = VideoCreate(
-                    **video_data,
-                    status=VideoStatus.DRAFT
-                )
+                **video_data,
+                status=VideoStatus.DRAFT
+            )
 
-            await self.repository.create(
-                    create_data
-                )
+            await self.repository.create(create_data)
 
             created += 1
-
-        # STEP 5: Return sync summary
-       
 
         return {
             "total_fetched": len(youtube_items),
             "created": created,
+            "updated": updated,
             "skipped": skipped,
             "next_page_token": youtube_response.get(
                 "nextPageToken"
-            )
+            ),
         }
