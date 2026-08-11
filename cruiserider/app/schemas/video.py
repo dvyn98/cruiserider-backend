@@ -5,9 +5,9 @@ from enum import Enum
 
 
 class VideoStatus(str,Enum):
-    DRAFT="Draft"
-    PUBLISHED="Published"
-    ARCHIVED="Archived"
+    DRAFT="DRAFT"
+    PUBLISHED="PUBLISHED"
+    ARCHIVED="ARCHIVED"
 
 class VideoCreate(BaseModel):
     youtube_video_id: str = Field(..., min_length=1, max_length=100)
@@ -76,3 +76,10 @@ class VideoResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)    
+
+class VideoListResponse(BaseModel):
+    total:int
+    page:int
+    limit: int
+    pages: int
+    videos: list[VideoResponse]    
