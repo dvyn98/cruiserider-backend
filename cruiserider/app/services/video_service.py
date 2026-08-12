@@ -118,6 +118,17 @@ class VideoService:
 
         return await self.repository.update(video)
 
+    async def unpublish_video(
+        self,
+        video_id: str
+    ):
+
+        video = await self.get_video(video_id)
+
+        video.status = VideoStatus.DRAFT.value
+
+        return await self.repository.update(video)
+
     async def archive_video(
         self,
         video_id: str
@@ -130,16 +141,6 @@ class VideoService:
 
         return await self.repository.update(video)
 
-    async def unpublish_video(
-        self,
-        video_id: str
-    ):
-
-        video = await self.get_video(video_id)
-
-        video.status = VideoStatus.DRAFT.value
-
-        return await self.repository.update(video)
 
     async def toggle_feature(
         self,

@@ -55,7 +55,7 @@ async def get_videos(
         search=search,
     )
 
-@router.post("/sync/youtube")
+"""@router.post("/sync/youtube")
 async def sync_youtube_videos(
     max_results: int = Query(50, ge=1, le=50),
     service: VideoService = Depends(get_video_service),
@@ -65,7 +65,7 @@ async def sync_youtube_videos(
     return await service.sync_videos(
         max_results=max_results
     )
-
+"""
 @router.get(
     "/featured",
     response_model=list[VideoResponse]
