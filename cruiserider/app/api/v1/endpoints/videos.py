@@ -13,6 +13,7 @@ from app.schemas.video import (
     VideoResponse,
     VideoListResponse,
     VideoStatus,
+    YouTubeVideoCreate
 )
 from app.services.video_service import VideoService
 from app.security.dependencies import get_current_admin
@@ -105,7 +106,25 @@ async def get_latest_videos(
 
     return result["videos"]
 
+@router.post(
+    "/youtube",
+    response_model=VideoResponse,
+    status_code=http_status.HTTP_201_CREATED
+)
+async def add_youtube_video(
+    video_data: YouTubeVideoCreate,
+    service: VideoService = Depends(get_video_service),
+    current_admin: User = Depends(get_current_admin),
+):
+    """
+    Add a single YouTube video to Cruise Rider.
 
+    Admin only.
+    """
+
+    return await service.add_youtube_video(
+        video_data.youtube_video_id
+    )
 @router.get(
     "/{video_id}",
     response_model=VideoResponse
