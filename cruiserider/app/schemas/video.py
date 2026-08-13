@@ -8,7 +8,13 @@ class VideoStatus(str,Enum):
     DRAFT="DRAFT"
     PUBLISHED="PUBLISHED"
     ARCHIVED="ARCHIVED"
-
+    
+class YouTubeVideoCreate(BaseModel):
+    youtube_video_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=100
+    )
 class VideoCreate(BaseModel):
     youtube_video_id: str = Field(..., min_length=1, max_length=100)
     title: str = Field(..., min_length=1, max_length=500)

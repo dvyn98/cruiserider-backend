@@ -9,6 +9,8 @@ from app.schemas.video import (
 from app.services.youtube_service import (
     fetch_channel_videos,
     parse_youtube_video,
+    duration_to_seconds,
+    fetch_video_by_id
 )
 
 
@@ -42,6 +44,80 @@ class VideoService:
 
         return await self.repository.create(video_data)
 
+
+    async def add_youtube_video(
+    self,
+    youtube_video_id: str
+        ):
+        """
+    Fetch one video from YouTube and add it to the database.
+    Only long-form videos are allowed.
+        """
+
+    # 1. Check if video already exists
+        existing_video = await self.repository.get_by_youtube_id(
+        youtube_video_id
+    )
+
+        if existing_video:
+            raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A video with this YouTube video ID already exists"
+        )
+
+    # 2. Fetch ONE video from YouTube
+        youtube_video = await fetch_video_by_id(
+        youtube_video_id
+    )
+
+    # 3. YouTube video not found
+        if not youtube_video:
+            raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="YouTube video not found"
+        )
+
+    # 4. Parse / normalize YouTube response
+        video_data = parse_youtube_video(
+        youtube_video
+    )
+
+    # 5. Validate required fields
+        parsed_video_id = video_data.get(
+        "youtube_video_id"
+    )
+
+        published_at = video_data.get(
+        "published_at"
+    )
+
+        if not parsed_video_id or not published_at:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid YouTube video data"
+        )
+
+    # 6. Check Shorts
+        duration_seconds = duration_to_seconds(
+            video_data.get("duration", "")
+    )
+
+        if duration_seconds <= 180:
+            raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="YouTube Shorts are not supported"
+        )
+
+    # 7. Convert YouTube data into VideoCreate
+        create_data = VideoCreate(
+        **video_data,
+        status=VideoStatus.DRAFT
+    )
+
+    # 8. Save to database
+        return await self.repository.create(
+        create_data
+    )
    
     # GET SINGLE VIDEO
     
@@ -95,7 +171,7 @@ class VideoService:
             car_brand=car_brand,
             search=search,
         )
-        pages=(total+limit-1)
+        pages=(total+limit-1)//limit
 
         return {
             "total": total,
